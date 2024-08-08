@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: clone-repo
+spec:
+  params:
+    - name: url
+      type: string
+    - name: revision
+      type: string
+      default: "main"
+  workspaces:
+    - name: output
+  steps:
+    - name: clone
+      image: alpine/git
+      script: |
+        mkdir -p /root/.ssh
+        cp /tekton/creds/ssh-privatekey /root/.ssh/id_rsa
+        chmod 600 /root/.ssh/id_rsa
+        ssh-keyscan github.com >> /root/.ssh/known_hosts
+        git clone $(params.url) $(workspaces.output.path)
+        cd $(workspaces.output.path)
+        git checkout $(params.revision)
+      volumeMounts:
+        - name: ssh-key
+          mountPath: /tekton/creds
+  volumes:
+    - name: ssh-key
+      secret:
+        secretName: git-ssh-key
+

@@ -1,0 +1,19 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: ci-pipeline-run-
+spec:
+  pipelineRef:
+    name: ci-pipeline
+  params:
+    - name: git-url
+      value: https://github.com/AlexanderSolman/my-app.git
+    - name: git-revision
+      value: main
+    - name: image-name
+      value: ghcr.io/alexandersolman/my-app
+  workspaces:
+    - name: shared-data
+      persistentVolumeClaim:
+        claimName: my-pvc
+  serviceAccountName: tekton-sa

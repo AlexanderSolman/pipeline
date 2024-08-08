@@ -1,0 +1,12 @@
+pipeline:
+  name: tekton-pipeline
+  namespace: tekton-pipelines
+
+git:
+  url: https://github.com/AlexanderSolman/pipeline.git
+  revision: main
+
+dockerRegistry:
+  url: ghcr.io/alexandersolman
+  credentialsSecretName: docker-registry-credentials
+

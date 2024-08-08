@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: push-image
+spec:
+  params:
+    - name: image-name
+      type: string
+    - name: image-tag
+      type: string
+  steps:
+    - name: login
+      image: docker
+      script: |
+        echo $(cat /tekton/creds/.dockerconfigjson) | docker login -u your-username --password-stdin ghcr.io
+    - name: push
+      image: docker
+      script: |
+        docker push $(params.image-name):$(params.image-tag)
+      securityContext:
+        runAsUser: 0
+        privileged: true
+  volumeMounts:
+    - name: docker-config
+      mountPath: /tekton/creds
+

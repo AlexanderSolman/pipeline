@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-image
+spec:
+  params:
+    - name: image-name
+      type: string
+    - name: image-tag
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: build
+      image: docker
+      script: |
+        docker build -t $(params.image-name):$(params.image-tag) $(workspaces.source.path)
+

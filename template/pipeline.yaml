@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: ci-pipeline
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+      default: "main"
+    - name: image-name
+      type: string
+  workspaces:
+    - name: shared-data
+  tasks:
+    - name: clone-repo
+      taskRef:
+        name: clone-repo
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-data
+    - name: build-image
+      taskRef:
+        name: build-image
+      runAfter: ["clone-repo"]
+      params:
+        - name: image-name
+          value: $(params.image-name)
+        - name: image-tag
+          value: $(context.pipelineRun.metadata.uid) # Use a unique identifier for the image tag
+      workspaces:
+        - name: source
+          workspace: shared-data
+    - name: push-image
+      taskRef:
+        name: push-image
+      runAfter: ["build-image"]
+      params:
+        - name: image-name
+          value: $(params.image-name)
+        - name: image-tag
+          value: $(context.pipelineRun.metadata.uid)
+
