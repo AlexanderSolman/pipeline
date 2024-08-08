@@ -1,0 +1,64 @@
+apiVersion: tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: {{ .Values.eventListener.name }}
+  namespace: {{ .Values.eventListener.namespace }}
+spec:
+  serviceAccountName: {{ .Values.serviceAccount.name }}
+  triggers:
+    - name: pipeline-trigger
+      binding:
+        name: {{ .Values.triggerBinding.name }}
+        namespace: {{ .Values.triggerBinding.namespace }}
+      template:
+        name: {{ .Values.triggerTemplate.name }}
+        namespace: {{ .Values.triggerTemplate.namespace }}
+---
+apiVersion: tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: {{ .Values.triggerBinding.name }}
+  namespace: {{ .Values.triggerBinding.namespace }}
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.git_url)
+    - name: git-revision
+      value: $(body.head_commit.id)
+    - name: image-tag
+      value: $(body.head_commit.id)
+---
+apiVersion: tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: {{ .Values.triggerTemplate.name }}
+  namespace: {{ .Values.triggerTemplate.namespace }}
+spec:
+  params:
+    - name: git-url
+    - name: git-revision
+    - name: image-tag
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: pipeline-run-
+      spec:
+        pipelineRef:
+          name: {{ .Values.pipeline.name }}
+        params:
+          - name: git-url
+            value: $(params.git-url)
+          - name: git-revision
+            value: $(params.git-revision)
+          - name: image-tag
+            value: $(params.image-tag)
+        workspaces:
+          - name: shared-data
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 1Gi
+

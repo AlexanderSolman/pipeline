@@ -1,49 +1,119 @@
-apiVersion: tekton.dev/v1
+apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: ci-pipeline
+  name: tekton-pipeline
 spec:
   params:
     - name: git-url
       type: string
-    - name: git-revision
+      description: "The git repository URL"
+    - name: image-tag
       type: string
-      default: "main"
-    - name: image-name
-      type: string
+      default: "latest"
+      description: "Tag for the Docker image"
   workspaces:
     - name: shared-data
   tasks:
+    # Clone repo
     - name: clone-repo
-      taskRef:
-        name: clone-repo
+      taskSpec:
+        workspaces:
+          - name: output
+        params:
+          - name: url
+            type: string
+        steps:
+          - name: clone
+            image: alpine/git
+            script: |
+              mkdir -p $(workspaces.output.path)/repo
+              ssh-keyscan github.com >> ~/.ssh/known_hosts
+              GIT_SSH_COMMAND="ssh -i /workspace/ssh-privatekey" git clone $(params.url) $(workspaces.output.path)/repo
       params:
         - name: url
           value: $(params.git-url)
-        - name: revision
-          value: $(params.git-revision)
       workspaces:
         - name: output
           workspace: shared-data
-    - name: build-image
-      taskRef:
-        name: build-image
+      volumes:
+        - name: ssh-privatekey
+          secret:
+            secretName: git-ssh-key
+      volumeMounts:
+        - name: ssh-privatekey
+          mountPath: /workspace/ssh-privatekey
+          subPath: ssh-privatekey
+    # Run tests
+    - name: run-tests
       runAfter: ["clone-repo"]
-      params:
-        - name: image-name
-          value: $(params.image-name)
-        - name: image-tag
-          value: $(context.pipelineRun.metadata.uid) # Use a unique identifier for the image tag
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: test
+            image: golang
+            script: |
+              cd $(workspaces.source.path)/repo
+              go test ./...
       workspaces:
         - name: source
           workspace: shared-data
-    - name: push-image
-      taskRef:
-        name: push-image
-      runAfter: ["build-image"]
+    # Build Docker image
+    - name: build-image
+      runAfter: ["run-tests"]
+      taskSpec:
+        params:
+          - name: image-tag
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: build
+            image: gcr.io/kaniko-project/executor:latest
+            script: |
+              cd $(workspaces.source.path)/repo
+              /kaniko/executor --dockerfile=Dockerfile --destination=$(params.image-name):$(params.image-tag) --context=$(workspaces.source.path)/repo
       params:
-        - name: image-name
-          value: $(params.image-name)
         - name: image-tag
-          value: $(context.pipelineRun.metadata.uid)
+          value: $(params.image-tag)
+      workspaces:
+        - name: source
+          workspace: shared-data
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: ghcr-secret
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker/
+          subPath: .dockerconfigjson
+    # Push Docker image
+    - name: push-image
+      runAfter: ["build-image"]
+      taskSpec:
+        params:
+          - name: image-tag
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: push
+            image: gcr.io/kaniko-project/executor:latest
+            script: |
+              cd $(workspaces.source.path)/repo
+              /kaniko/executor --dockerfile=Dockerfile --destination=$(params.image-name):$(params.image-tag) --context=$(workspaces.source.path)/repo
+      params:
+        - name: image-tag
+          value: $(params.image-tag)
+      workspaces:
+        - name: source
+          workspace: shared-data
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: ghcr-secret
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker/
+          subPath: .dockerconfigjson
 

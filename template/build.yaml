@@ -12,7 +12,7 @@ spec:
     - name: source
   steps:
     - name: build
-      image: docker
+      image: gcr.io/kaniko-project/executor:latest
       script: |
-        docker build -t $(params.image-name):$(params.image-tag) $(workspaces.source.path)
+        /kaniko/executor --dockerfile=Dockerfile --destination=$(params.image-name):$(params.image-tag) --context=$(workspaces.source.path)
 

@@ -3,10 +3,29 @@ pipeline:
   namespace: tekton-pipelines
 
 git:
-  url: https://github.com/AlexanderSolman/pipeline.git
+  url: git@github.com:AlexanderSolman/my-app.git
   revision: main
 
 dockerRegistry:
   url: ghcr.io/alexandersolman
   credentialsSecretName: docker-registry-credentials
+
+eventListener:
+  name: pipeline-trigger
+  namespace: tekton-pipelines
+
+triggerBinding:
+  name: pipeline-trigger-binding
+  namespace: tekton-pipelines
+
+triggerTemplate:
+  name: pipeline-trigger-template
+  namespace: tekton-pipelines
+
+dockerConfig:
+  secretName: ghcr-secret
+
+serviceAccount:
+  name: tekton-sa
+  namespace: default
 

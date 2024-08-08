@@ -4,16 +4,19 @@ metadata:
   generateName: ci-pipeline-run-
 spec:
   pipelineRef:
-    name: ci-pipeline
+    name: tekton-pipeline
   params:
     - name: git-url
-      value: https://github.com/AlexanderSolman/my-app.git
-    - name: git-revision
-      value: main
-    - name: image-name
-      value: ghcr.io/alexandersolman/my-app
+      value: {{ .Values.git.url }}
+    - name: image-tag
+      value: $(context.pipelineRun.name) # Automatically uses the PipelineRun name as tag
   workspaces:
     - name: shared-data
-      persistentVolumeClaim:
-        claimName: my-pvc
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
   serviceAccountName: tekton-sa
+
