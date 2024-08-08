@@ -8,7 +8,7 @@ git:
 
 dockerRegistry:
   url: ghcr.io/alexandersolman
-  credentialsSecretName: docker-registry-credentials
+  credentialsSecretName: ghcr-secret
 
 eventListener:
   name: pipeline-trigger
@@ -27,5 +27,5 @@ dockerConfig:
 
 serviceAccount:
   name: tekton-sa
-  namespace: default
+  namespace: tekton-pipelines
 
